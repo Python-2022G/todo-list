@@ -16,15 +16,22 @@ def to_dict(task):
     return data
 
 class Tasks(View):
-    def get(self, request: HttpRequest) -> JsonResponse:
+    def get(self, request: HttpRequest, id=None) -> JsonResponse:
         '''get all tasks'''
-        tasks = Task.objects.all()
-        data = {'tasks': []}
+        if id == None:
+            tasks = Task.objects.all()
+            data = {'tasks': []}
 
-        for task in tasks:
-            data['tasks'].append(to_dict(task))
+            for task in tasks:
+                data['tasks'].append(to_dict(task))
 
-        return JsonResponse(data)
+            return JsonResponse(data)
+        else:
+            try:
+                task = Task.objects.get(id=id)
+                return JsonResponse(to_dict(task))
+            except ObjectDoesNotExist:
+                return JsonResponse({"status": "does not exist"})
     
     def post(self, request: HttpRequest) -> JsonResponse:
         """
