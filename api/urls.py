@@ -7,4 +7,3 @@ urlpatterns = [
     path('update/<int:pk>', Update.as_view()),
     path('completed', CompletedTasks.as_view()),
     path('incompleted', InCompletedTasks.as_view())
-]
