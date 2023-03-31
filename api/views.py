@@ -3,6 +3,9 @@ from .models import Task
 import json
 from django.core.exceptions import ObjectDoesNotExist
 from django.views import View
+from django.contrib.auth import authenticate
+from base64 import b64decode
+from django.contrib.auth.models import User
 
 def to_dict(task):
     data = {
@@ -12,27 +15,38 @@ def to_dict(task):
         'desciption': task.description,
         'created': task.created,
         'updated': task.updated,
+        'user': task.user.username
     }
     return data
 
 class Tasks(View):
     def get(self, request: HttpRequest, id=None) -> JsonResponse:
         '''get all tasks'''
-        if id == None:
-            tasks = Task.objects.all()
-            data = {'tasks': []}
+        authorization = request.headers.get('Authorization').split()[1]
+        
+        username, password = b64decode(authorization).decode().split(':')
 
-            for task in tasks:
-                data['tasks'].append(to_dict(task))
+        user = authenticate(username=username, password=password)
+        
+        if user is not None:
+            if id == None:
+                tasks = Task.objects.filter(user=user)
+                data = {'tasks': []}
 
-            return JsonResponse(data)
-        else:
-            try:
-                task = Task.objects.get(id=id)
-                return JsonResponse(to_dict(task))
-            except ObjectDoesNotExist:
-                return JsonResponse({"status": "does not exist"})
-    
+                for task in tasks:
+                    data['tasks'].append(to_dict(task))
+
+                return JsonResponse(data)
+            else:
+                try:
+                    task = Task.objects.get(id=id)
+                    return JsonResponse(to_dict(task))
+                except ObjectDoesNotExist:
+                    return JsonResponse({"status": "does not exist"})
+        
+        return JsonResponse({'status': 'Unauthorized'})
+
+        
     def post(self, request: HttpRequest) -> JsonResponse:
         """
         Creta todo task
