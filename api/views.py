@@ -1,13 +1,11 @@
 from django.http import HttpRequest, JsonResponse
-from django.views import View
-from django.core.exceptions import ObjectDoesNotExist
-import json
 from .models import Task
+import json
+from django.core.exceptions import ObjectDoesNotExist
+from django.views import View
 
-
-def to_dict(task: Task) -> dict:
-    '''to dict'''
-    return {
+def to_dict(task):
+    data = {
         'id': task.id,
         'name': task.name,
         'completed': task.completed,
@@ -15,8 +13,9 @@ def to_dict(task: Task) -> dict:
         'created': task.created,
         'updated': task.updated,
     }
+    return data
 
-class Get_all(View):
+class Tasks(View):
     def get(self, request: HttpRequest) -> JsonResponse:
         '''get all tasks'''
         tasks = Task.objects.all()
@@ -28,90 +27,87 @@ class Get_all(View):
         return JsonResponse(data)
     
     def post(self, request: HttpRequest) -> JsonResponse:
-        '''create task'''
-        data = request.body.decode('utf-8')
-        data = json.loads(data)
-        task = Task.objects.create(
-            name=data['name'],
-            description=data['description'],
-            completed=data['completed']
-        )
-        return JsonResponse(to_dict(task))
+        """
+        Creta todo task
+        """
+        if request.method == 'POST':
+            body = request.body
+            # decode body
+            decode = body.decode()
+            data = json.loads(decode)
+            name = data.get('name')
+            completed = data.get('completed')
+            description = data.get('description')
 
-def get_task(request: HttpRequest, id: int) -> JsonResponse:
-    '''get task by id'''
-    try:
-        task = Task.objects.get(id=id)
-        return JsonResponse(to_dict(task))
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Task not found'}, status=404)
-
-def create_task(request: HttpRequest) -> JsonResponse:
-    '''create task'''
-    data = request.body.decode('utf-8')
-    data = json.loads(data)
-    task = Task.objects.create(
-        name=data['name'],
-        description=data['description'],
-        completed=data['completed']
-    )
-    return JsonResponse(to_dict(task))
-
-def mark_task(request: HttpRequest, id: int) -> JsonResponse:
-    '''mark task'''
-    try:
-        task = Task.objects.get(id=id)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Task not found'}, status=404)
+            if name == None:
+                return JsonResponse({"status": "name field is required."})
+            if description == None:
+                return JsonResponse({"status": "description field is required."})
+            
+            task = Task.objects.create(
+                name = name,
+                completed = completed,
+                description = description
+            )
+            task.save()
+            return JsonResponse({"status": "Saccessfuly!"})
+        else:
+            return JsonResponse({"status": "You need POST request!"})
     
-    task.completed = not task.completed
-    task.save()
+class Delete(View):
+    def get(self, request: HttpRequest, pk: int) -> JsonResponse:
+        """
+        delete task
+        """
+        if request.method == "GET":
+            try:
+                # get product from database by id
+                product = Task.objects.get(id=pk)
+                product.delete()
+                return JsonResponse(to_dict(product))
+            except ObjectDoesNotExist:
+                return JsonResponse({"status": "object doesn't exist"})
+   
+class Update(View):
+    def post(self, request: HttpRequest, pk: int) -> JsonResponse:
+        if request.method == "POST":
+            try:
+                task = Task.objects.get(id=pk)
+            except:
+                return JsonResponse({"status": "Does not exist!"})
+            
+            body = request.body
+            # decode body
+            decode = body.decode()
+            data = json.loads(decode)
+            name = data.get('name')
+            completed = data.get('completed')
+            description = data.get('description')
 
-    return JsonResponse(to_dict(task))
+            task.name = data['name']
+            task.description = data['description']
+            task.completed = data['completed']
+            task.save()
+            return JsonResponse({"status": "Saccessfuly updated!"})
 
-def get_completed_tasks(request: HttpRequest) -> JsonResponse:
-    '''get tasks by completed'''
-    tasks = Task.objects.filter(completed=True)
-    data = {'tasks': []}
+class CompletedTasks(View):
+    def get(self, request: HttpRequest) -> JsonResponse:
+        tasks = Task.objects.filter(completed=True)
+        data = {
+            'tasks': []
+        }
+        for task in tasks:
+            data['tasks'].append(to_dict(task))
 
-    for task in tasks:
-        data['tasks'].append(to_dict(task))
+        return JsonResponse(data)
+    
+class InCompletedTasks(View):
+    def get(self, request: HttpRequest) -> JsonResponse:
+        tasks = Task.objects.filter(completed=False)
+        data = {
+            'tasks': []
+        }
+        for task in tasks:
+            data['tasks'].append(to_dict(task))
 
-    return JsonResponse(data)
-
-def get_incompleted_tasks(request: HttpRequest) -> JsonResponse:
-    '''get tasks by completed'''
-    tasks = Task.objects.filter(completed=False)
-    data = {'tasks': []}
-
-    for task in tasks:
-        data['tasks'].append(to_dict(task))
-
-    return JsonResponse(data)
-
-def update_task(request: HttpRequest, id: int) -> JsonResponse:
-    '''update task'''
-    try:
-        task = Task.objects.get(id=id)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Task not found'}, status=404)
-
-    data = request.body.decode('utf-8')
-    data = json.loads(data)
-
-    task.name = data['name']
-    task.description = data['description']
-    task.completed = data['completed']
-    task.save()
-
-    return JsonResponse(to_dict(task))
-
-def delete_task(request: HttpRequest, id: int) -> JsonResponse:
-    '''delete task'''
-    try:
-        task = Task.objects.get(id=id)
-    except ObjectDoesNotExist:
-        return JsonResponse({'error': 'Task not found'}, status=404)
-
-    task.delete()
-    return JsonResponse({'message': 'Task deleted'})
+        return JsonResponse(data)
