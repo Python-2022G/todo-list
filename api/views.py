@@ -51,30 +51,38 @@ class Tasks(View):
         """
         Creta todo task
         """
-        if request.method == 'POST':
-            body = request.body
-            # decode body
-            decode = body.decode()
-            data = json.loads(decode)
-            name = data.get('name')
-            completed = data.get('completed')
-            description = data.get('description')
+        authorization = request.headers.get('Authorization').split()[1]
+        
+        username, password = b64decode(authorization).decode().split(':')
 
-            if name == None:
-                return JsonResponse({"status": "name field is required."})
-            if description == None:
-                return JsonResponse({"status": "description field is required."})
-            
-            task = Task.objects.create(
-                name = name,
-                completed = completed,
-                description = description
-            )
-            task.save()
-            return JsonResponse({"status": "Saccessfuly!"})
-        else:
-            return JsonResponse({"status": "You need POST request!"})
-    
+        user = authenticate(username=username, password=password)
+
+        if user is not None:
+            if request.method == 'POST':
+                body = request.body
+                # decode body
+                decode = body.decode()
+                data = json.loads(decode)
+                name = data.get('name')
+                completed = data.get('completed')
+                description = data.get('description')
+
+                if name == None:
+                    return JsonResponse({"status": "name field is required."})
+                if description == None:
+                    return JsonResponse({"status": "description field is required."})
+                
+                task = Task.objects.create(
+                    name = name,
+                    completed = completed,
+                    description = description,
+                    user=user
+                )
+                task.save()
+                return JsonResponse({"status": "Saccessfuly!"})
+            else:
+                return JsonResponse({"status": "You need POST request!"})
+        
 class Delete(View):
     def get(self, request: HttpRequest, pk: int) -> JsonResponse:
         """
